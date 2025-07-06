@@ -44,6 +44,10 @@ class ArchiveTar:
         self.filename = filename
         self.create_from_file_list = create_from_file_list
         self.file_list = file_list
+        sde = os.environ.get('SOURCE_DATE_EPOCH')
+        # FIXME path without sde
+        self.defaultoptions = ['--sort=name', '-owner=0', '--group=0', '--numeric-owner', '--pax-option=exthdr.name=%d/PaxHeaders/%f,delete=atime,delete=ctime', f'--mtime=@{sde}']
+
 
         if CommandCapabilities.check_version('tar', (1, 27)):
             self.xattrs_options = [
@@ -61,7 +65,7 @@ class ArchiveTar:
         :param list options: custom creation options
         """
         if not options:
-            options = []
+            options = self.defaultoptions
         Command.run(
             [
                 'tar', '-C', source_dir
@@ -80,7 +84,7 @@ class ArchiveTar:
         :param list options: custom options
         """
         if not options:
-            options = []
+            options = self.defaultoptions
         Command.run(
             [
                 'tar', '-C', source_dir, '-r',
@@ -101,7 +105,7 @@ class ArchiveTar:
         :param list xz_options: custom xz compression options
         """
         if not options:
-            options = []
+            options = self.defaultoptions
         if not xz_options:
             xz_options = Defaults.get_xz_compression_options()
         bash_command = [

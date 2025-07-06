@@ -155,7 +155,7 @@ class DiskFormatVagrantBase(DiskFormatBase):
 
             vagrant.write(embedded_vagrantfile)
 
-        Command.run(
+        Command.run( # FIXME use kiwi.archive.tar create
             [
                 'tar', '-C', temp_image_dir.name,
                 '-czf', self.get_target_file_path_for_format(
