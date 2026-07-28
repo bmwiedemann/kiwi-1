@@ -22,8 +22,10 @@ class TestFileSystemFat16:
     def setup_method(self, cls, mock_exists):
         self.setup()
 
+    @patch('kiwi.filesystem.fat16.CommandCapabilities.has_option_in_help')
     @patch('kiwi.filesystem.fat16.Command.run')
-    def test_create_on_device(self, mock_command):
+    def test_create_on_device(self, mock_command, mock_has_option):
+        mock_has_option.return_value = True
         with patch.dict('os.environ', {'SOURCE_DATE_EPOCH': '0'}):
             self.fat16.create_on_device(
                 'label', 100, uuid='12345678-1234-5678-1234-567812345678'
@@ -31,7 +33,7 @@ class TestFileSystemFat16:
             call = mock_command.call_args_list[0]
             assert mock_command.call_args_list[0] == call(
                 [
-                    'mkdosfs', '-F16', '-I', '-n', 'label',
+                    'mkdosfs', '-F16', '-I', '--invariant', '-n', 'label',
                     '-i', '12345678', '/dev/foo', '100'
                 ]
             )
@@ -39,13 +41,26 @@ class TestFileSystemFat16:
             self.fat16.create_on_device('label', 100)
             assert mock_command.call_args_list[0] == call(
                 [
-                    'mkdosfs', '-F16', '-I',
+                    'mkdosfs', '-F16', '-I', '--invariant',
                     '-n', 'label',
                     '-i', '2453562E',
                     '/dev/foo',
                     '100'
                 ]
             )
+
+    @patch('kiwi.filesystem.fat16.CommandCapabilities.has_option_in_help')
+    @patch('kiwi.filesystem.fat16.Command.run')
+    def test_create_on_device_without_invariant_support(
+        self, mock_command, mock_has_option
+    ):
+        mock_has_option.return_value = False
+        with patch.dict('os.environ', {'SOURCE_DATE_EPOCH': '0'}):
+            self.fat16.create_on_device('label', 100)
+            assert mock_command.call_args_list[0][0][0] == [
+                'mkdosfs', '-F16', '-I', '-n', 'label',
+                '-i', '2453562E', '/dev/foo', '100'
+            ]
 
     @patch('kiwi.filesystem.fat16.Command.run')
     def test_set_uuid(self, mock_command):

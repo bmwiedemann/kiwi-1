@@ -21,6 +21,7 @@ import kiwi.defaults as defaults
 
 from kiwi.filesystem.base import FileSystemBase
 from kiwi.command import Command
+from kiwi.utils.command_capabilities import CommandCapabilities
 
 
 class FileSystemFat32(FileSystemBase):
@@ -44,12 +45,21 @@ class FileSystemFat32(FileSystemBase):
         """
         device_args = [self.device_provider.get_device()]
         call_args = self.custom_args['create_options'].copy()
+        invariant_args = []
         if not uuid and label:
             uuid = self._generate_seed_uuid(label)
         if label:
             call_args.append('-n')
             call_args.append(label)
         if uuid:
+            # mkdosfs stamps the volume label directory entry with the
+            # current time, which makes every build differ. --invariant
+            # replaces that with a constant. It must be passed before -i
+            # because both set the volume id and the last one wins
+            if CommandCapabilities.has_option_in_help(
+                'mkdosfs', '--invariant', raise_on_error=False
+            ):
+                invariant_args.append('--invariant')
             call_args.append('-i')
             call_args.append(f'{UUID(uuid).time_low:08X}')
         if size:
@@ -63,7 +73,7 @@ class FileSystemFat32(FileSystemBase):
         Command.run(
             [
                 'mkdosfs', '-F32', '-I'
-            ] + call_args + device_args
+            ] + invariant_args + call_args + device_args
         )
 
     def set_uuid(self):

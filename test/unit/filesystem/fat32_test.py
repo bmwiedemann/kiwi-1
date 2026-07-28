@@ -22,8 +22,10 @@ class TestFileSystemFat32:
     def setup_method(self, cls, mock_exists):
         self.setup()
 
+    @patch('kiwi.filesystem.fat32.CommandCapabilities.has_option_in_help')
     @patch('kiwi.filesystem.fat32.Command.run')
-    def test_create_on_device(self, mock_command):
+    def test_create_on_device(self, mock_command, mock_has_option):
+        mock_has_option.return_value = True
         with patch.dict('os.environ', {'SOURCE_DATE_EPOCH': '0'}):
             self.fat32.create_on_device(
                 'label', 100, uuid='12345678-1234-5678-1234-567812345678'
@@ -31,7 +33,7 @@ class TestFileSystemFat32:
             call = mock_command.call_args_list[0]
             assert mock_command.call_args_list[0] == call(
                 [
-                    'mkdosfs', '-F32', '-I', '-n', 'label',
+                    'mkdosfs', '-F32', '-I', '--invariant', '-n', 'label',
                     '-i', '12345678', '/dev/foo', '100'
                 ]
             )
@@ -39,13 +41,26 @@ class TestFileSystemFat32:
             self.fat32.create_on_device('label', 100)
             assert mock_command.call_args_list[0] == call(
                 [
-                    'mkdosfs', '-F32', '-I',
+                    'mkdosfs', '-F32', '-I', '--invariant',
                     '-n', 'label',
                     '-i', '2453562E',
                     '/dev/foo',
                     '100'
                 ]
             )
+
+    @patch('kiwi.filesystem.fat32.CommandCapabilities.has_option_in_help')
+    @patch('kiwi.filesystem.fat32.Command.run')
+    def test_create_on_device_without_invariant_support(
+        self, mock_command, mock_has_option
+    ):
+        mock_has_option.return_value = False
+        with patch.dict('os.environ', {'SOURCE_DATE_EPOCH': '0'}):
+            self.fat32.create_on_device('label', 100)
+            assert mock_command.call_args_list[0][0][0] == [
+                'mkdosfs', '-F32', '-I', '-n', 'label',
+                '-i', '2453562E', '/dev/foo', '100'
+            ]
 
     @patch('kiwi.filesystem.fat32.Command.run')
     def test_set_uuid(self, mock_command):
