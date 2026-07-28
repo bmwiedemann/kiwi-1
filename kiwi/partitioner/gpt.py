@@ -23,6 +23,7 @@ from typing import (
 # project
 from kiwi.command import Command
 from kiwi.partitioner.base import PartitionerBase
+from kiwi.utils.seed import generate_seed_uuid
 
 from kiwi.exceptions import (
     KiwiPartitionerGptFlagError
@@ -52,6 +53,7 @@ class PartitionerGpt(PartitionerBase):
             't.prep': '4100'
         }
         self.partition_map: dict[int, int] = {}
+        self.disk_guid_set = False
 
     def create(
         self, name: str, mbsize: int, type_name: str, flags: List[str] = None,
@@ -92,10 +94,48 @@ class PartitionerGpt(PartitionerBase):
                 self.disk_device
             ]
         )
+        self._set_disk_guid()
+        self._set_partition_guid(self.partition_id, name)
         self.set_flag(self.partition_id, type_name)
         if flags:
             for flag_name in flags:
                 self.set_flag(self.partition_id, flag_name)
+
+    def _set_disk_guid(self) -> None:
+        """
+        Set the GUID of the partition table, once
+
+        sgdisk creates a random one, which makes every build of the
+        same image differ. The table is zapped before the first
+        partition is created, so this cannot happen any earlier.
+        """
+        if not self.disk_guid_set:
+            Command.run(
+                [
+                    'sgdisk', '-U', generate_seed_uuid('disk'),
+                    self.disk_device
+                ]
+            )
+            self.disk_guid_set = True
+
+    def _set_partition_guid(self, partition_id: int, name: str) -> None:
+        """
+        Set the unique GUID of the given partition
+
+        As with the table GUID, sgdisk would create a random one.
+        The partition id is part of the seed so that partitions
+        sharing a name still get distinct GUIDs.
+
+        :param int partition_id: partition number
+        :param string name: partition name
+        """
+        Command.run(
+            [
+                'sgdisk', '-u', '{0}:{1}'.format(
+                    partition_id, generate_seed_uuid(f'{partition_id}:{name}')
+                ), self.disk_device
+            ]
+        )
 
     def set_flag(self, partition_id: int, flag_name: str) -> None:
         """

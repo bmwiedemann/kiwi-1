@@ -174,7 +174,7 @@ class TestFileSystemBase:
             assert self.fsbase._generate_seed_uuid('label') == \
                 'c0cbf4e3-10a7-86ea-9472-87aaca0074f2'
 
-    @patch('kiwi.filesystem.base.uuid')
+    @patch('kiwi.utils.seed.uuid')
     def test_generate_seed_uuid_random(self, mock_uuid):
         mock_uuid.uuid4.return_value = 'some'
         with patch.dict('os.environ', {'SOURCE_DATE_EPOCH': ''}):

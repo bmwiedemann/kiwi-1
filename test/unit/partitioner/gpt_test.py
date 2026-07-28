@@ -27,22 +27,30 @@ class TestPartitionerGpt:
         self.setup()
 
     @patch('kiwi.partitioner.gpt.Command.run')
+    @patch('kiwi.partitioner.gpt.generate_seed_uuid')
     @patch('kiwi.partitioner.gpt.PartitionerGpt.set_flag')
-    def test_create(self, mock_flag, mock_command):
+    def test_create(self, mock_flag, mock_seed_uuid, mock_command):
+        mock_seed_uuid.return_value = 'some-uuid'
         self.partitioner.create('name', 100, 't.linux', ['t.csm'])
-        mock_command.assert_called_once_with(
-            ['sgdisk', '-n', '1:0:+100M', '-c', '1:name', '/dev/loop0']
-        )
-        call = mock_flag.call_args_list[0]
-        assert mock_flag.call_args_list[0] == \
-            call(1, 't.linux')
-        call = mock_flag.call_args_list[1]
-        assert mock_flag.call_args_list[1] == \
-            call(1, 't.csm')
+        assert mock_command.call_args_list == [
+            call(['sgdisk', '-n', '1:0:+100M', '-c', '1:name', '/dev/loop0']),
+            call(['sgdisk', '-U', 'some-uuid', '/dev/loop0']),
+            call(['sgdisk', '-u', '1:some-uuid', '/dev/loop0'])
+        ]
+        assert mock_seed_uuid.call_args_list == [
+            call('disk'), call('1:name')
+        ]
+        assert mock_flag.call_args_list == [
+            call(1, 't.linux'), call(1, 't.csm')
+        ]
 
     @patch('kiwi.partitioner.gpt.Command.run')
+    @patch('kiwi.partitioner.gpt.generate_seed_uuid')
     @patch('kiwi.partitioner.gpt.PartitionerGpt.set_flag')
-    def test_create_custom_start_sector(self, mock_flag, mock_command):
+    def test_create_custom_start_sector(
+        self, mock_flag, mock_seed_uuid, mock_command
+    ):
+        mock_seed_uuid.return_value = 'some-uuid'
         disk_provider = Mock()
         disk_provider.get_device = Mock(
             return_value='/dev/loop0'
@@ -50,26 +58,37 @@ class TestPartitionerGpt:
         partitioner = PartitionerGpt(disk_provider, 4096)
         partitioner.create('name', 100, 't.linux', ['t.csm'])
         partitioner.create('name', 100, 't.linux', ['t.csm'])
-        mock_command.assert_has_calls([
+        # the table GUID is set once, the partition GUIDs once each
+        assert mock_command.call_args_list == [
             call([
                 'sgdisk', '-n', '1:4096:+100M', '-c', '1:name', '/dev/loop0'
             ]),
+            call(['sgdisk', '-U', 'some-uuid', '/dev/loop0']),
+            call(['sgdisk', '-u', '1:some-uuid', '/dev/loop0']),
             call([
                 'sgdisk', '-n', '2:0:+100M', '-c', '2:name', '/dev/loop0'
-            ])
-        ])
+            ]),
+            call(['sgdisk', '-u', '2:some-uuid', '/dev/loop0'])
+        ]
+        assert mock_seed_uuid.call_args_list == [
+            call('disk'), call('1:name'), call('2:name')
+        ]
         assert mock_flag.call_args_list[0] == \
             call(1, 't.linux')
         assert mock_flag.call_args_list[1] == \
             call(1, 't.csm')
 
     @patch('kiwi.partitioner.gpt.Command.run')
+    @patch('kiwi.partitioner.gpt.generate_seed_uuid')
     @patch('kiwi.partitioner.gpt.PartitionerGpt.set_flag')
-    def test_create_all_free(self, mock_flag, mock_command):
+    def test_create_all_free(self, mock_flag, mock_seed_uuid, mock_command):
+        mock_seed_uuid.return_value = 'some-uuid'
         self.partitioner.create('name', 'all_free', 't.linux')
-        mock_command.assert_called_once_with(
-            ['sgdisk', '-n', '1:0:0', '-c', '1:name', '/dev/loop0']
-        )
+        assert mock_command.call_args_list == [
+            call(['sgdisk', '-n', '1:0:0', '-c', '1:name', '/dev/loop0']),
+            call(['sgdisk', '-U', 'some-uuid', '/dev/loop0']),
+            call(['sgdisk', '-u', '1:some-uuid', '/dev/loop0'])
+        ]
 
     def test_set_flag_invalid(self):
         with raises(KiwiPartitionerGptFlagError):

@@ -16,11 +16,8 @@
 # along with kiwi.  If not, see <http://www.gnu.org/licenses/>
 #
 import os
-import uuid
-import random
 import logging
 import copy
-from functools import reduce
 from typing import (
     Dict, List, Optional
 )
@@ -29,6 +26,7 @@ from typing import (
 import kiwi.defaults as defaults
 
 from kiwi.defaults import Defaults
+from kiwi.utils.seed import generate_seed_uuid
 from kiwi.utils.sync import DataSync
 from kiwi.mount_manager import MountManager
 from kiwi.command import Command
@@ -321,25 +319,9 @@ class FileSystemBase:
 
     def _generate_seed_uuid(self, label: str, random_bits: int = 128) -> str:
         """
-        Create random UUID. If SOURCE_DATE_EPOCH is present use
-        SOURCE_DATE_EPOCH + label name as seed
+        Create UUID seeded with SOURCE_DATE_EPOCH and the label name
         """
-        sde = os.environ.get('SOURCE_DATE_EPOCH')
-        if sde:
-            label_seed = reduce(lambda x, y: x + y, map(ord, label))
-            epoch_seed = label_seed + int(sde)
-            log.info(
-                'Using UUID seed SOURCE_DATE_EPOCH:{0} + LABEL:{1}={2}'.format(
-                    sde, label, label_seed
-                )
-            )
-            rd = random.Random()
-            rd.seed(epoch_seed)
-            return format(
-                uuid.UUID(int=rd.getrandbits(random_bits))
-            )
-        else:
-            return format(uuid.uuid4())
+        return generate_seed_uuid(label, random_bits)
 
     def _map_size(self, size: float, from_unit: str, to_unit: str) -> float:
         """
