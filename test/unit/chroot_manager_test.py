@@ -138,3 +138,46 @@ class TestChrootManager:
         )
         mock_mntMngr.bind_mount.assert_called()
         mock_mntMngr.umount.assert_called()
+
+    @patch('kiwi.chroot_manager.MountManager')
+    @patch('os.rmdir')
+    @patch('os.path.exists')
+    def test_created_mountpoints_are_removed(
+        self, mock_exists, mock_rmdir, mock_mount
+    ):
+        # /some/root exists, the bind target below it does not
+        mock_exists.side_effect = lambda path: path in [
+            '/some/root', '/some', '/'
+        ]
+        with ChrootManager(
+            '/some/root', binds=[ChrootMount('/var/tmp/kiwi_volumes.abc')]
+        ):
+            pass
+        assert mock_rmdir.call_args_list == [
+            call('/some/root/var/tmp/kiwi_volumes.abc'),
+            call('/some/root/var/tmp'),
+            call('/some/root/var')
+        ]
+
+    @patch('kiwi.chroot_manager.MountManager')
+    @patch('os.rmdir')
+    @patch('os.path.exists')
+    def test_existing_mountpoints_are_kept(
+        self, mock_exists, mock_rmdir, mock_mount
+    ):
+        mock_exists.return_value = True
+        with ChrootManager('/some/root', binds=[ChrootMount('/dev')]):
+            pass
+        mock_rmdir.assert_not_called()
+
+    @patch('kiwi.chroot_manager.MountManager')
+    @patch('os.rmdir')
+    @patch('os.path.exists')
+    def test_non_empty_mountpoint_is_kept(
+        self, mock_exists, mock_rmdir, mock_mount
+    ):
+        mock_exists.return_value = False
+        mock_rmdir.side_effect = OSError('not empty')
+        with ChrootManager('/some/root', binds=[ChrootMount('/dev')]):
+            pass
+        assert mock_rmdir.called

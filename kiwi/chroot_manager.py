@@ -54,13 +54,19 @@ class ChrootManager:
     def __init__(self, root_dir: str, binds: List[ChrootMount] = []):
         self.root_dir = root_dir
         self.mounts: List[MountManager] = []
+        self.created_mountpoints: List[str] = []
         for bind in binds:
+            mountpoint = os.path.normpath(
+                os.sep.join([root_dir, bind.target])
+            )
+            # remember what does not exist yet, MountManager creates it
+            self.created_mountpoints += self._missing_path_elements(mountpoint)
             self.mounts.append(MountManager(
                 device=bind.source if bind.source else bind.target,
-                mountpoint=os.path.normpath(
-                    os.sep.join([root_dir, bind.target])
-                )
+                mountpoint=mountpoint
             ))
+        # deepest first, such that parents are empty when they are reached
+        self.created_mountpoints.sort(key=len, reverse=True)
 
     def __enter__(self) -> "ChrootManager":
         try:
@@ -97,8 +103,37 @@ class ChrootManager:
             except KiwiUmountBusyError as e:
                 errors.append(e)
 
+        # The mountpoints are scaffolding for a chroot call. Left behind
+        # they end up in the image, and as they carry the random suffix
+        # of the temporary directory they are mounted from, the image
+        # differs on every build. Only empty directories that were
+        # created here are removed, rmdir takes care of the rest
+        for mountpoint in self.created_mountpoints:
+            try:
+                os.rmdir(mountpoint)
+            except OSError as e:
+                log.debug(f'Keeping mountpoint {mountpoint}: {e}')
+
         if errors:
             raise KiwiUmountBusyError(errors)
+
+    @staticmethod
+    def _missing_path_elements(path: str) -> List[str]:
+        """
+        Provides the path elements of path that do not exist yet,
+        deepest element first
+
+        :param str path: directory path name
+
+        :return: list of path names
+
+        :rtype: list
+        """
+        missing = []
+        while path and path != os.sep and not os.path.exists(path):
+            missing.append(path)
+            path = os.path.dirname(path)
+        return missing
 
     def run(
         self, command: List[str],
