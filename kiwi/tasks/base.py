@@ -25,6 +25,7 @@ from operator import attrgetter
 
 # project
 from kiwi.cli import Cli
+from kiwi.defaults import Defaults
 from kiwi.xml_state import XMLState
 from kiwi.xml_description import XMLDescription
 from kiwi.runtime_checker import RuntimeChecker
@@ -197,7 +198,19 @@ class CliTask:
             self.global_args['--type']
         )
 
+        # Everything that creates identifiers, timestamps or archives
+        # later on reads SOURCE_DATE_EPOCH from the environment. Set it
+        # here, once the image description is known, such that those
+        # consumers produce reproducible results by default
+        os.environ['SOURCE_DATE_EPOCH'] = Defaults.get_source_date_epoch(
+            self.config_file
+        )
+
         log.info('--> loaded %s', self.config_file)
+        log.info(
+            '--> Using SOURCE_DATE_EPOCH: %s',
+            os.environ['SOURCE_DATE_EPOCH']
+        )
         if self.xml_state.build_type:
             log.info(
                 '--> Selected build type: %s',

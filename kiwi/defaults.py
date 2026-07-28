@@ -166,6 +166,31 @@ class Defaults:
         return 256
 
     @staticmethod
+    def get_source_date_epoch(config_file: str) -> str:
+        """
+        Provides the SOURCE_DATE_EPOCH value to build with
+
+        An epoch provided by the environment always wins, no matter
+        if it was inherited from the caller or set explicitly through
+        the --setenv option. If there is none, the modification time
+        of the image description is used. Build systems restore that
+        mtime from the stored source revision, which makes the value
+        stable across rebuilds of the same image description and
+        allows KIWI to seed the identifiers it creates. Without a
+        seed those identifiers are random and the image cannot be
+        reproduced.
+
+        :param str config_file: path to the image description
+
+        :return: seconds since the epoch as string
+
+        :rtype: str
+        """
+        return os.environ.get('SOURCE_DATE_EPOCH') or format(
+            int(os.path.getmtime(config_file))
+        )
+
+    @staticmethod
     def get_swapsize_mbytes():
         """
         Provides swapsize in MB

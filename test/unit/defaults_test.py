@@ -1,4 +1,5 @@
 import logging
+import os
 from unittest.mock import (
     patch, call
 )
@@ -62,6 +63,18 @@ class TestDefaults:
 
     def test_get_default_shared_cache_location(self):
         assert Defaults.get_shared_cache_location() == 'var/cache/kiwi'
+
+    def test_get_source_date_epoch_from_environment(self):
+        with patch.dict('os.environ', {'SOURCE_DATE_EPOCH': '42'}):
+            assert Defaults.get_source_date_epoch('config.xml') == '42'
+
+    @patch('os.path.getmtime')
+    def test_get_source_date_epoch_from_description(self, mock_getmtime):
+        mock_getmtime.return_value = 1746009944.8
+        with patch.dict('os.environ'):
+            os.environ.pop('SOURCE_DATE_EPOCH', None)
+            assert Defaults.get_source_date_epoch('config.xml') == '1746009944'
+        mock_getmtime.assert_called_once_with('config.xml')
 
     @patch('kiwi.defaults.Path.which')
     def test_get_grub_boot_directory_name(self, mock_which):

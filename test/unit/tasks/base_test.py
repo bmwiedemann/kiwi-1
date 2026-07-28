@@ -1,3 +1,4 @@
+import os
 import sys
 from unittest.mock import (
     patch, call
@@ -176,6 +177,25 @@ class TestCliTask:
         self.task.load_xml_description('../data/description.buildservice')
         assert self.task.config_file == \
             '../data/description.buildservice/appliance.kiwi'
+
+    @patch('kiwi.tasks.base.RuntimeChecker')
+    def test_load_xml_description_keeps_source_date_epoch(
+        self, mock_runtime_checker
+    ):
+        # the task was set up with --setenv SOURCE_DATE_EPOCH=42
+        self.task.load_xml_description('../data/description')
+        assert os.environ['SOURCE_DATE_EPOCH'] == '42'
+
+    @patch('kiwi.tasks.base.RuntimeChecker')
+    @patch('os.path.getmtime')
+    def test_load_xml_description_sets_source_date_epoch(
+        self, mock_getmtime, mock_runtime_checker
+    ):
+        mock_getmtime.return_value = 1746009944.8
+        with patch.dict('os.environ'):
+            os.environ.pop('SOURCE_DATE_EPOCH', None)
+            self.task.load_xml_description('../data/description')
+            assert os.environ['SOURCE_DATE_EPOCH'] == '1746009944'
 
     def test_load_xml_description_raises(self):
         with raises(KiwiConfigFileNotFound):

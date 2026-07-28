@@ -156,6 +156,11 @@ GLOBAL OPTIONS
   exports an environment variable and its value into the caller's
   environment. This option can be specified multiple times.
 
+  Setting `SOURCE_DATE_EPOCH` this way pins the seed KIWI uses for the
+  identifiers it creates, such as filesystem UUIDs and partition GUIDs.
+  If neither this option nor the environment provides the variable,
+  KIWI falls back to the modification time of the image description.
+
 --shared-cache-dir=<directory>
 
   Specifies an alternative shared cache directory. The directory
