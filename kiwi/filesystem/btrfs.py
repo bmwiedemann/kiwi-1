@@ -20,6 +20,7 @@ import kiwi.defaults as defaults
 
 from kiwi.command import Command
 from kiwi.filesystem.base import FileSystemBase
+from kiwi.utils.command_capabilities import CommandCapabilities
 
 
 class FileSystemBtrfs(FileSystemBase):
@@ -51,6 +52,13 @@ class FileSystemBtrfs(FileSystemBase):
         if uuid:
             call_args.append('-U')
             call_args.append(uuid)
+            # -U only sets the filesystem uuid, the device also carries
+            # one of its own which mkfs.btrfs would create at random
+            if CommandCapabilities.has_option_in_help(
+                'mkfs.btrfs', '--device-uuid', raise_on_error=False
+            ):
+                call_args.append('--device-uuid')
+                call_args.append(self._generate_seed_uuid(f'device:{uuid}'))
         if size:
             call_args.append('--byte-count')
             call_args.append(
