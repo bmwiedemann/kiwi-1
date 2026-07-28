@@ -63,7 +63,11 @@ Options marked with ``...`` can be given multiple times.
      - The base directory for temporary files. Default: :file:`/var/tmp`.
    * - ``--setenv <variable=value>...``
      - Set an environment variable for {kiwi} and the tools and scripts it
-       calls.
+       calls. Setting `SOURCE_DATE_EPOCH` this way pins the seed {kiwi}
+       uses for the identifiers it creates, such as filesystem UUIDs and
+       partition GUIDs. If neither this option nor the environment
+       provides the variable, {kiwi} falls back to the modification time
+       of the image description.
    * - ``--debug``
      - Print debug messages, same as ``--loglevel 10``.
    * - ``--loglevel <number>``

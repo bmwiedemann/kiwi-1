@@ -11,7 +11,7 @@ Reproducible Builds
 
 When {kiwi} creates an image twice from the exact same root tree, for
 example with `kiwi-ng system build` followed by `kiwi-ng system create`
-on the resulting root tree, the two images are by default not bit
+on the resulting root tree, the two images are not automatically bit
 identical. The data files inside the image are the same, but many tools
 involved in creating the image add data that changes with every call:
 timestamps, randomly generated UUIDs, random salts or the order of
@@ -25,10 +25,18 @@ Enabling Reproducible Builds
 environment variable `SOURCE_DATE_EPOCH` is set to a UNIX timestamp,
 {kiwi} and the tools it calls use this value instead of the current
 time, and derive identifiers from it instead of creating random ones.
-If the variable is not set, nothing changes.
 
-Set the variable for every {kiwi} call that creates image data. Note
-that `sudo` removes environment variables by default:
+If the variable is not set, neither in the environment nor through the
+``--setenv`` option, {kiwi} sets it to the modification time of the
+image description file. Build systems like the Open Build Service
+restore that modification time from the stored source revision, so
+rebuilds of the same image description use the same value without any
+further setup. {kiwi} logs the value it uses at the start of every
+call.
+
+To use a different value, set the variable for every {kiwi} call that
+creates image data. Note that `sudo` removes environment variables by
+default:
 
 .. code:: shell-session
 
@@ -38,19 +46,25 @@ that `sudo` removes environment variables by default:
    $ sudo --preserve-env=SOURCE_DATE_EPOCH kiwi-ng system create \
          --root <target>/build/image-root --target-dir <target2>
 
+As an alternative to the environment, pass
+``--setenv SOURCE_DATE_EPOCH=<timestamp>`` to {kiwi}.
+
 To find the remaining differences between two images, use a tool like
 `diffoscope <https://diffoscope.org/>`_.
 
 .. warning::
 
-   Without `SOURCE_DATE_EPOCH`, {kiwi} creates random identifiers on
-   purpose, such that two images never share them. With
-   `SOURCE_DATE_EPOCH` set, identifiers like filesystem UUIDs and GPT
-   partition GUIDs only depend on the value of `SOURCE_DATE_EPOCH` and
-   on names like the filesystem label. Two different images built with
-   the same `SOURCE_DATE_EPOCH` value and the same labels share these
-   identifiers. Do not attach such images to the same system at the
-   same time, or use different `SOURCE_DATE_EPOCH` values for them.
+   Identifiers like filesystem UUIDs and GPT partition GUIDs only
+   depend on the value of `SOURCE_DATE_EPOCH` and on names like the
+   filesystem label. Two different images built with the same
+   `SOURCE_DATE_EPOCH` value and the same labels share these
+   identifiers. As {kiwi} falls back to the modification time of the
+   image description, this also applies to two images whose
+   descriptions happen to have the same modification time, or to
+   several images built from the same description, for example with
+   different profiles. Do not attach such images to the same system at
+   the same time, or set different `SOURCE_DATE_EPOCH` values for
+   them.
 
 What {kiwi} Makes Deterministic
 -----------------------------------
